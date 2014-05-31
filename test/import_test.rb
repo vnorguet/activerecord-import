@@ -4,22 +4,22 @@ describe "#import" do
   it "should return the number of inserts performed" do
     # see ActiveRecord::ConnectionAdapters::AbstractAdapter test for more specifics
     assert_difference "Topic.count", +10 do
-      result = Topic.import Build(3, :topics)
+      result = Topic.ar_import Build(3, :topics)
       assert result.num_inserts > 0
 
-      result = Topic.import Build(7, :topics)
+      result = Topic.ar_import Build(7, :topics)
       assert result.num_inserts > 0
     end
   end
 
   it "should not produce an error when importing empty arrays" do
     assert_nothing_raised do
-      Topic.import []
-      Topic.import %w(title author_name), []
+      Topic.ar_import []
+      Topic.ar_import %w(title author_name), []
     end
   end
 
-  describe "with non-default ActiveRecord models" do  
+  describe "with non-default ActiveRecord models" do
     context "that have a non-standard primary key (that is no sequence)" do
       it "should import models successfully" do
         assert_difference "Widget.count", +3 do
@@ -37,19 +37,19 @@ describe "#import" do
     context "with validation checks turned off" do
       it "should import valid data" do
         assert_difference "Topic.count", +2 do
-          result = Topic.import columns, valid_values, :validate => false
+          result = Topic.ar_import columns, valid_values, :validate => false
         end
       end
 
       it "should import invalid data" do
         assert_difference "Topic.count", +2 do
-          result = Topic.import columns, invalid_values, :validate => false
+          result = Topic.ar_import columns, invalid_values, :validate => false
         end
       end
 
       it 'should raise a specific error if a column does not exist' do
         assert_raises ActiveRecord::Import::MissingColumnError do
-          Topic.import ['foo'], [['bar']], :validate => false
+          Topic.ar_import ['foo'], [['bar']], :validate => false
         end
       end
     end
@@ -57,25 +57,25 @@ describe "#import" do
     context "with validation checks turned on" do
       it "should import valid data" do
         assert_difference "Topic.count", +2 do
-          result = Topic.import columns, valid_values, :validate => true
+          result = Topic.ar_import columns, valid_values, :validate => true
         end
       end
 
       it "should not import invalid data" do
         assert_no_difference "Topic.count" do
-          result = Topic.import columns, invalid_values, :validate => true
+          result = Topic.ar_import columns, invalid_values, :validate => true
         end
       end
 
       it "should report the failed instances" do
-        results = Topic.import columns, invalid_values, :validate => true
+        results = Topic.ar_import columns, invalid_values, :validate => true
         assert_equal invalid_values.size, results.failed_instances.size
         results.failed_instances.each{ |e| assert_kind_of Topic, e }
       end
 
       it "should import valid data when mixed with invalid data" do
         assert_difference "Topic.count", +2 do
-          result = Topic.import columns, valid_values + invalid_values, :validate => true
+          result = Topic.ar_import columns, valid_values + invalid_values, :validate => true
         end
         assert_equal 0, Topic.where(title: invalid_values.map(&:first)).count
       end
@@ -91,30 +91,30 @@ describe "#import" do
     context "with validation checks turned on" do
       it "should import valid data" do
         assert_difference "Topic.count", +2 do
-          result = Topic.import columns, valid_values, :all_or_none => true
+          result = Topic.ar_import columns, valid_values, :all_or_none => true
         end
       end
 
       it "should not import invalid data" do
         assert_no_difference "Topic.count" do
-          result = Topic.import columns, invalid_values, :all_or_none => true
+          result = Topic.ar_import columns, invalid_values, :all_or_none => true
         end
       end
 
       it "should not import valid data when mixed with invalid data" do
         assert_no_difference "Topic.count" do
-          result = Topic.import columns, mixed_values, :all_or_none => true
+          result = Topic.ar_import columns, mixed_values, :all_or_none => true
         end
       end
 
       it "should report the failed instances" do
-        results = Topic.import columns, mixed_values, :all_or_none => true
+        results = Topic.ar_import columns, mixed_values, :all_or_none => true
         assert_equal invalid_values.size, results.failed_instances.size
         results.failed_instances.each { |e| assert_kind_of Topic, e }
       end
 
       it "should report the zero inserts" do
-        results = Topic.import columns, mixed_values, :all_or_none => true
+        results = Topic.ar_import columns, mixed_values, :all_or_none => true
         assert_equal 0, results.num_inserts
       end
     end
@@ -125,7 +125,7 @@ describe "#import" do
       let(:new_topics) { Build(3, :topics) }
 
       it "doesn't reload any data (doesn't work)" do
-        Topic.import new_topics, :synchronize => new_topics
+        Topic.ar_import new_topics, :synchronize => new_topics
         assert new_topics.all?(&:new_record?), "No record should have been reloaded"
       end
     end
@@ -134,7 +134,7 @@ describe "#import" do
       let(:new_topics) { Build(3, :topics) }
 
       it "reloads data for existing in-memory instances" do
-        Topic.import(new_topics, :synchronize => new_topics, :synchronize_keys => [:title] )
+        Topic.ar_import(new_topics, :synchronize => new_topics, :synchronize_keys => [:title] )
         assert new_topics.all?(&:persisted?), "Records should have been reloaded"
       end
     end
@@ -144,7 +144,7 @@ describe "#import" do
 
       it "reloads data for existing in-memory instances" do
         new_topics.each &:destroy
-        Topic.import(new_topics, :synchronize => new_topics, :synchronize_keys => [:title] )
+        Topic.ar_import(new_topics, :synchronize => new_topics, :synchronize_keys => [:title] )
         assert new_topics.all?(&:persisted?), "Records should have been reloaded"
       end
     end
@@ -157,10 +157,10 @@ describe "#import" do
 
     it "should import records based on those model's attributes" do
       assert_difference "Topic.count", +9 do
-        result = Topic.import topics
+        result = Topic.ar_import topics
       end
 
-      Topic.import [topic]
+      Topic.ar_import [topic]
       assert Topic.where(title: "The RSpec Book", author_name: "David Chelimsky").first
     end
 
@@ -170,7 +170,7 @@ describe "#import" do
         begin
           Topic.transaction do
             topic.title = "baz"
-            Topic.import [topic]
+            Topic.ar_import [topic]
           end
         rescue Exception
           # PostgreSQL raises PgError due to key constraints
@@ -183,13 +183,13 @@ describe "#import" do
     context "with validation checks turned on" do
       it "should import valid models" do
         assert_difference "Topic.count", +9 do
-          result = Topic.import topics, :validate => true
+          result = Topic.ar_import topics, :validate => true
         end
       end
 
       it "should not import invalid models" do
         assert_no_difference "Topic.count" do
-          result = Topic.import invalid_topics, :validate => true
+          result = Topic.ar_import invalid_topics, :validate => true
         end
       end
     end
@@ -197,7 +197,7 @@ describe "#import" do
     context "with validation checks turned off" do
       it "should import invalid models" do
         assert_difference "Topic.count", +7 do
-          result = Topic.import invalid_topics, :validate => false
+          result = Topic.ar_import invalid_topics, :validate => false
         end
       end
     end
@@ -208,7 +208,7 @@ describe "#import" do
 
     it "should import records populating the supplied columns with the corresponding model instance attributes" do
       assert_difference "Topic.count", +2 do
-        result = Topic.import [:author_name, :title], topics
+        result = Topic.ar_import [:author_name, :title], topics
       end
 
       # imported topics should be findable by their imported attributes
@@ -219,7 +219,7 @@ describe "#import" do
     it "should not populate fields for columns not imported" do
       topics.first.author_email_address = "zach.dennis@gmail.com"
       assert_difference "Topic.count", +2 do
-        result = Topic.import [:author_name, :title], topics
+        result = Topic.ar_import [:author_name, :title], topics
       end
 
       assert !Topic.where(author_email_address: "zach.dennis@gmail.com").first
@@ -228,7 +228,7 @@ describe "#import" do
 
   context "with an array of columns and an array of values" do
     it "should import ids when specified" do
-      Topic.import [:id, :author_name, :title], [[99, "Bob Jones", "Topic 99"]]
+      Topic.ar_import [:id, :author_name, :title], [[99, "Bob Jones", "Topic 99"]]
       assert_equal 99, Topic.last.id
     end
   end
@@ -300,7 +300,7 @@ describe "#import" do
 
   context "importing a datetime field" do
     it "should import a date with YYYY/MM/DD format just fine" do
-      Topic.import [:author_name, :title, :last_read], [["Bob Jones", "Topic 2", "2010/05/14"]]
+      Topic.ar_import [:author_name, :title, :last_read], [["Bob Jones", "Topic 2", "2010/05/14"]]
       assert_equal "2010/05/14".to_date, Topic.last.last_read.to_date
     end
   end
